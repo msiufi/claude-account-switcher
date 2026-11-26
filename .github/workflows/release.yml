@@ -1,0 +1,54 @@
+# Push a tag like v1.1.0 (matching windows/package.json "version") to build
+# the Windows installer + portable app and publish them as a GitHub Release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Check tag matches app version
+        shell: pwsh
+        run: |
+          $v = (Get-Content windows/package.json | ConvertFrom-Json).version
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match package.json version $v" }
+
+      - name: Install and test
+        working-directory: windows
+        run: |
+          npm ci
+          npm test
+
+      - name: Build
+        working-directory: windows
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Package assets
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive windows/dist/Claude-Switcher-Setup-$v.exe out/Claude-Switcher-Setup-$v.zip
+          Compress-Archive windows/dist/Claude-Switcher-Portable-$v.exe out/Claude-Switcher-Portable-$v.zip
+          Compress-Archive python/* out/Claude-Switcher-Python-$v.zip
+          Get-FileHash out/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content out/SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true

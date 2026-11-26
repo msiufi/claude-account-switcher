@@ -1,0 +1,57 @@
+{
+  "name": "claude-switcher",
+  "productName": "Claude Switcher",
+  "version": "1.0.0",
+  "description": "Switch between Claude Desktop accounts on Windows without signing in again",
+  "author": "msiufi",
+  "license": "MIT",
+  "homepage": "https://github.com/msiufi/claude-account-switcher",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/msiufi/claude-account-switcher.git"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/core.test.js",
+    "dist": "electron-builder --win --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.lean.claudeswitcher",
+    "productName": "Claude Switcher",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "core.js",
+      "preload.js",
+      "manage.html",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "Claude Switcher",
+      "artifactName": "Claude-Switcher-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Claude-Switcher-Portable-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}

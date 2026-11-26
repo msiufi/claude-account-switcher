@@ -1,11 +1,20 @@
+# Python
 __pycache__/
 *.py[cod]
 .venv/
+
+# Node / Electron
+windows/node_modules/
+windows/dist/
+out/
+
+# Secrets and local session data: never commit these
 .env
 .env.*
-build/
-dist/
 profiles/
 state.json
 claude_desktop_config.json
+
+# OS
 .DS_Store
+Thumbs.db

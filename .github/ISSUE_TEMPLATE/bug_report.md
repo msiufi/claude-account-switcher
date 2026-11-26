@@ -14,8 +14,7 @@ labels: ''
 **Environment**
 
 - OS and version
-- Python version
-- Claude Desktop version and installation channel
-- Switcher commit or version
+- Switcher version and which one: Windows app or Python (with Python version)
+- Claude Desktop version and installation channel (direct download or Microsoft Store)
 
 Use sanitized details and screenshots. Keep account identifiers, configuration secrets, and profile contents private.

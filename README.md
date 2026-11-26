@@ -1,32 +1,90 @@
 # Claude Account Switcher
 
-Switch between Claude Desktop accounts on the same computer with separate local profiles. Sign in through Claude Desktop once per profile, then select a saved account to reopen Claude with that profile. If a session expires, sign in again in Claude Desktop.
+Switch between Claude Desktop accounts the way the mobile app does: sign in once per account, then switch with one click, without signing in again.
 
-This is an independent utility for Windows and macOS. The interface is currently in Spanish. See the [Spanish guide](LEEME.md).
+[Leer en español](README.es.md)
 
-## Run from source
+<p align="center"><img src="docs/screenshot.png" alt="Claude Switcher window" width="320"></p>
 
-1. Install Claude Desktop and Python 3.8 or later with Tkinter. Run `python -m tkinter` on Windows or `python3 -m tkinter` on macOS to check your Python installation.
-2. Clone this repository or use **Code → Download ZIP**, then extract it.
-3. From the project folder, run `python claude_switcher.py` on Windows or `python3 claude_switcher.py` on macOS.
+> Independent, community project. Not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
 
-In the switcher, click **Guardar cuenta actual** to name the account already open in Claude. Click **Añadir cuenta** to open a fresh profile and sign in through Claude Desktop. Click a profile to switch. Right-click a profile to rename or delete it. With the switcher window focused, use Ctrl+1 through Ctrl+9 on Windows or Cmd+1 through Cmd+9 on macOS.
+## Download
 
-The CLI also supports `list`, `save NAME`, `new NAME`, `switch NAME`, `rename OLD NEW`, and `delete NAME`. Pass the command after `claude_switcher.py`.
+Get the latest version from **[Releases](https://github.com/msiufi/claude-account-switcher/releases/latest)**:
 
-## How profiles work
-
-The switcher closes Claude Desktop, moves its local data directory into the active profile, moves the selected profile into place, and relaunches Claude. The switcher carries forward the current `claude_desktop_config.json` when present. Keep profiles on the same computer and OS account.
-
-| Platform | Switcher data |
+| File | For |
 | --- | --- |
-| Windows | `%APPDATA%\Claude-Switcher` |
-| macOS | `~/Library/Application Support/Claude-Switcher` |
+| `Claude-Switcher-Setup-x.y.z.zip` | **Windows** (recommended). Unzip and run the installer. No admin rights needed. |
+| `Claude-Switcher-Portable-x.y.z.zip` | Windows, no install. Unzip and run. |
+| `Claude-Switcher-Python-x.y.z.zip` | Windows, macOS or Linux, with Python 3.8+. |
 
-The `profiles/` directory can contain active session material. Keep it private and exclude it from issue attachments and repositories. Back up your Claude Desktop data before trying the switcher, and finish active work before switching because Claude Desktop will close. Compatibility can vary with Claude Desktop packaging and updates.
+Each release includes `SHA256SUMS.txt` so you can verify downloads.
 
-## Feedback and contributions
+The Windows builds are not code-signed yet, so SmartScreen will show *"Windows protected your PC"*. Click **More info → Run anyway**. Every release is built from this repository's source by [GitHub Actions](.github/workflows/release.yml).
 
-Report bugs or suggest features through [GitHub Issues](https://github.com/msiufi/claude-account-switcher/issues). See [Contributing](CONTRIBUTING.md) for setup, testing, and pull requests. Use the [security policy](SECURITY.md) for sensitive reports.
+## Windows app
 
-Claude is a product of Anthropic. This project is independently maintained.
+The app lives in the system tray next to the clock.
+
+1. Open Claude Desktop with the account you are already signed in to.
+2. Open Claude Switcher and click **Guardar cuenta actual** (save current account). Give it a name.
+3. Click **＋ Añadir cuenta** (add account). Claude reopens signed out; sign in once with the new account.
+
+After that:
+
+- Click the tray icon and pick an account, or press **Ctrl+Alt+1…9** from anywhere.
+- Double-click the tray icon to rename, reorder or delete accounts.
+- Turn on **Iniciar con Windows** to start it at login.
+
+The interface is currently in Spanish. Translations are welcome.
+
+## Python version (Windows, macOS, Linux)
+
+Requires Python 3.8+ with Tkinter (included in the python.org installers).
+
+```bash
+cd python
+python3 claude_switcher.py          # window
+python3 claude_switcher.py list     # command line: list, save, new, switch, rename, delete
+```
+
+You can also double-click `Abrir Claude Switcher (Mac).command` or `Abrir Claude Switcher (Windows).bat`. See the [Spanish guide](python/LEEME.md) for details.
+
+## How it works
+
+Claude Desktop keeps its session in a local data folder. The switcher keeps one copy of that folder per account. To switch, it closes Claude, moves the current folder into its profile, moves the selected profile into place, and reopens Claude. A switch takes a few seconds.
+
+- `claude_desktop_config.json` (MCP servers and extensions) is shared across all accounts.
+- Your chats live in each account's cloud storage. Nothing is merged between accounts.
+- If a session expires, only that account needs to sign in again.
+
+| Platform | Claude data | Saved profiles |
+| --- | --- | --- |
+| Windows | `%APPDATA%\Claude` (or the MSIX package folder) | `%APPDATA%\Claude-Switcher` |
+| macOS | `~/Library/Application Support/Claude` | `~/Library/Application Support/Claude-Switcher` |
+| Linux | `~/.config/Claude` | `~/.config/Claude-Switcher` |
+
+Both versions use the same profile folder, so you can move between them without losing saved accounts.
+
+## Safety
+
+- **The `Claude-Switcher` folder contains signed-in sessions.** Treat it like a password: don't share it, sync it to public places, or attach it to issues.
+- Back up your Claude Desktop data before first use, and finish active work before switching, because Claude closes.
+- Uninstalling the Windows app keeps saved profiles. Delete `%APPDATA%\Claude-Switcher` to remove them.
+- Compatibility can change with Claude Desktop updates. Please report breakage.
+
+## Repository layout
+
+```
+windows/   Electron tray app (Windows installer and portable)
+python/    Cross-platform Python + Tkinter version
+docs/      Images for this README
+```
+
+## Contributing
+
+Bug reports, compatibility reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE)

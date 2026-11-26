@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Claude Switcher</title>
+<style>
+  :root { --bg:#1f1e1d; --card:#2b2a27; --card2:#34332f; --fg:#f5f4ef; --muted:#a8a69e; --line:#3d3c37; --accent:#d97757; --danger:#e5675a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; user-select:none; }
+  header { padding:20px 20px 8px; }
+  h1 { font-size:18px; margin:0; font-weight:600; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:12px; margin-top:4px; }
+  main { padding:8px 14px; height:368px; overflow-y:auto; }
+  .row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid transparent; border-radius:10px; padding:10px 12px; margin-bottom:6px; cursor:pointer; }
+  .row:hover { background:var(--card2); }
+  .row.active { border-color:var(--accent); }
+  .avatar { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-weight:600; font-size:13px; background:#4a4843; flex:none; }
+  .row.active .avatar { background:var(--accent); color:#fff; }
+  .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .meta { color:var(--muted); font-size:11px; }
+  .acts { display:none; gap:2px; }
+  .row:hover .acts { display:flex; }
+  .icon-btn { background:none; border:0; color:var(--muted); width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:13px; }
+  .icon-btn:hover { background:var(--line); color:var(--fg); }
+  .icon-btn.del:hover { color:var(--danger); }
+  .empty { background:var(--card); border-radius:10px; padding:16px; color:var(--muted); line-height:1.45; }
+  .empty b { color:var(--fg); display:block; margin-bottom:4px; }
+  footer { padding:10px 14px 14px; border-top:1px solid var(--line); }
+  .btn { width:100%; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .btn.ghost { background:var(--card); color:var(--fg); font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .opts { display:flex; justify-content:space-between; align-items:center; margin-top:10px; color:var(--muted); font-size:12px; }
+  .opts label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .link { color:var(--muted); background:none; border:0; font:inherit; font-size:12px; cursor:pointer; text-decoration:underline; }
+  /* diálogo */
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; }
+  .scrim.open { display:flex; }
+  .dlg { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; width:100%; }
+  .dlg h2 { margin:0 0 6px; font-size:15px; }
+  .dlg p { margin:0 0 12px; color:var(--muted); font-size:12.5px; line-height:1.45; }
+  .dlg input { width:100%; background:var(--bg); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 10px; font:inherit; outline:none; }
+  .dlg input:focus { border-color:var(--accent); }
+  .dlg .err { color:var(--danger); font-size:12px; min-height:16px; margin-top:6px; }
+  .dlg .btns { display:flex; gap:8px; margin-top:8px; }
+  .dlg .btns .btn { flex:1; }
+  .toast { position:fixed; left:14px; right:14px; bottom:120px; background:#3a2a25; border:1px solid var(--danger); color:var(--fg); border-radius:8px; padding:10px 12px; font-size:12.5px; display:none; }
+  .busy { position:fixed; inset:0; background:rgba(31,30,29,.8); display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px; color:var(--muted); }
+  .busy.on { display:flex; }
+  .spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:s .8s linear infinite; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cuentas de Claude</h1>
+  <div class="sub" id="sub">Clic para cambiar · Ctrl+Alt+1…9 desde cualquier lugar</div>
+</header>
+<main id="list"></main>
+<footer>
+  <button class="btn" id="addBtn">＋ Añadir cuenta</button>
+  <div class="opts">
+    <label><input type="checkbox" id="login"> Iniciar con Windows</label>
+    <button class="link" id="folder">Carpeta de sesiones</button>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<div class="busy" id="busy"><div class="spin"></div><div id="busyText">Cambiando…</div></div>
+
+<div class="scrim" id="scrim">
+  <form class="dlg" id="dlg">
+    <h2 id="dTitle"></h2>
+    <p id="dText"></p>
+    <input id="dInput" maxlength="60" autocomplete="off" spellcheck="false">
+    <div class="err" id="dErr"></div>
+    <div class="btns">
+      <button type="button" class="btn ghost" id="dCancel">Cancelar</button>
+      <button type="submit" class="btn" id="dOk">Aceptar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { profiles: [], active: null, busy: false };
+
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = 'none'), 5000);
+}
+
+function render() {
+  $('busy').classList.toggle('on', !!state.busy);
+  $('login').checked = !!state.openAtLogin;
+  const list = $('list');
+  if (!state.profiles.length) {
+    list.innerHTML = `<div class="empty"><b>Primero, guarda la cuenta en la que estás ahora.</b>
+      Abre Claude Desktop con tu sesión actual y pulsa el botón de abajo. Después podrás añadir las demás.</div>`;
+    $('addBtn').textContent = 'Guardar cuenta actual';
+    return;
+  }
+  $('addBtn').textContent = '＋ Añadir cuenta';
+  list.innerHTML = state.profiles.map((n, i) => `
+    <div class="row ${n === state.active ? 'active' : ''}" data-n="${esc(n)}">
+      <div class="avatar">${esc(n.trim()[0].toUpperCase())}</div>
+      <div class="name">${esc(n)}<div class="meta">${n === state.active ? 'Activa' : (i < 9 ? 'Ctrl+Alt+' + (i + 1) : '')}</div></div>
+      <div class="acts">
+        <button class="icon-btn" data-a="up" title="Subir">▲</button>
+        <button class="icon-btn" data-a="down" title="Bajar">▼</button>
+        <button class="icon-btn" data-a="ren" title="Renombrar">✎</button>
+        <button class="icon-btn del" data-a="del" title="Eliminar">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function ask({ title, text, value = '', ok = 'Aceptar', danger = false, input = true }) {
+  return new Promise((resolve) => {
+    $('dTitle').textContent = title; $('dText').textContent = text; $('dErr').textContent = '';
+    $('dInput').style.display = input ? '' : 'none'; $('dInput').value = value;
+    $('dOk').textContent = ok; $('dOk').style.background = danger ? 'var(--danger)' : '';
+    $('scrim').classList.add('open');
+    if (input) setTimeout(() => { $('dInput').focus(); $('dInput').select(); }, 0);
+    const close = (v) => { $('scrim').classList.remove('open'); $('dlg').onsubmit = null; $('dCancel').onclick = null; resolve(v); };
+    $('dlg').onsubmit = (e) => { e.preventDefault(); const v = input ? $('dInput').value.trim() : true; if (input && !v) return; close(v); };
+    $('dCancel').onclick = () => close(null);
+  });
+}
+
+async function act(promise, busyText) {
+  if (busyText) { $('busyText').textContent = busyText; $('busy').classList.add('on'); }
+  const r = await promise;
+  $('busy').classList.remove('on');
+  if (!r.ok) toast(r.error);
+  state = await window.api.getState(); render();
+  return r.ok;
+}
+
+async function addFlow() {
+  if (!state.profiles.length) {
+    const n = await ask({ title: 'Guardar cuenta actual', text: '¿Cómo se llama la cuenta abierta ahora en Claude? (ej. personal, trabajo, tu email)', ok: 'Guardar' });
+    if (n) await act(window.api.saveCurrent(n));
+    return;
+  }
+  const n = await ask({ title: 'Añadir cuenta', text: 'Claude se cerrará y se abrirá sin sesión. Inicia sesión con la nueva cuenta y quedará guardada.', ok: 'Continuar' });
+  if (n) await act(window.api.add(n), 'Abriendo Claude limpio…');
+}
+
+$('list').addEventListener('click', async (e) => {
+  const row = e.target.closest('.row'); if (!row || state.busy) return;
+  const n = row.dataset.n; const a = e.target.dataset.a;
+  if (a === 'up') return act(window.api.move(n, -1));
+  if (a === 'down') return act(window.api.move(n, 1));
+  if (a === 'ren') {
+    const v = await ask({ title: 'Renombrar', text: `Nuevo nombre para "${n}"`, value: n, ok: 'Guardar' });
+    if (v && v !== n) await act(window.api.rename(n, v));
+    return;
+  }
+  if (a === 'del') {
+    const ok = await ask({ title: `Eliminar "${n}"`, text: 'Se borra la sesión guardada en este equipo. Tus chats siguen en la nube; solo tendrás que volver a iniciar sesión si la añades otra vez.', ok: 'Eliminar', danger: true, input: false });
+    if (ok) await act(window.api.remove(n));
+    return;
+  }
+  if (n !== state.active) await act(window.api.switchTo(n), `Cambiando a ${n}…`);
+});
+
+$('addBtn').onclick = addFlow;
+$('login').onchange = (e) => act(window.api.setOpenAtLogin(e.target.checked));
+$('folder').onclick = () => window.api.openFolder();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('scrim').classList.contains('open')) $('dCancel').click();
+});
+
+window.api.onState((s) => { state = s; render(); });
+window.api.onMode((m) => { if (m === 'add') addFlow(); });
+(async () => {
+  state = await window.api.getState(); render();
+  if (new URLSearchParams(location.search).get('mode') === 'add') addFlow();
+})();
+</script>
+</body>
+</html>
