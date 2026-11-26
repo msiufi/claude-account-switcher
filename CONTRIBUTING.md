@@ -40,6 +40,6 @@ Describe what changed, how you tested it, and which OS and Claude Desktop versio
 
 ## Releases (maintainers)
 
-1. Bump `version` in `windows/package.json`.
-2. Commit, then tag and push: `git tag v1.1.0 && git push origin v1.1.0`.
-3. The Release workflow builds the installer, portable app and Python zip, and publishes them with checksums.
+1. Bump `version` in `windows/package.json` (and run `npm install` in `windows/` so the lockfile matches).
+2. Merge to `main`.
+3. The Release workflow sees an unreleased version, builds the installer, portable app and Python zip on Windows, creates the `vX.Y.Z` tag and publishes the release with checksums. You can also start it by hand from the Actions tab.

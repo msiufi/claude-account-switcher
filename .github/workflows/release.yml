@@ -1,17 +1,50 @@
-# Push a tag like v1.1.0 (matching windows/package.json "version") to build
-# the Windows installer + portable app and publish them as a GitHub Release.
+# Publishes a GitHub Release whenever main contains a version (from
+# windows/package.json) that has not been released yet. To release, bump
+# "version" in windows/package.json and merge to main. The tag vX.Y.Z is
+# created automatically. Can also be run by hand from the Actions tab.
 name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths:
+      - "windows/**"
+      - "python/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      released: ${{ steps.v.outputs.released }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          version=$(jq -r .version windows/package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "v$version already released, nothing to do."
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
+    needs: check
+    if: needs.check.outputs.released == 'false'
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,19 +53,13 @@ jobs:
           cache: npm
           cache-dependency-path: windows/package-lock.json
 
-      - name: Check tag matches app version
-        shell: pwsh
-        run: |
-          $v = (Get-Content windows/package.json | ConvertFrom-Json).version
-          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match package.json version $v" }
-
       - name: Install and test
         working-directory: windows
         run: |
           npm ci
           npm test
 
-      - name: Build
+      - name: Build installer and portable app
         working-directory: windows
         run: npm run dist
         env:
@@ -41,14 +68,29 @@ jobs:
       - name: Package assets
         shell: pwsh
         run: |
-          $v = "${{ github.ref_name }}".TrimStart("v")
+          $v = $env:VERSION
           New-Item -ItemType Directory -Force out | Out-Null
           Compress-Archive windows/dist/Claude-Switcher-Setup-$v.exe out/Claude-Switcher-Setup-$v.zip
           Compress-Archive windows/dist/Claude-Switcher-Portable-$v.exe out/Claude-Switcher-Portable-$v.zip
-          Compress-Archive python/* out/Claude-Switcher-Python-$v.zip
+          Compress-Archive -Path python/claude_switcher.py, python/LEEME.md, "python/Abrir Claude Switcher (Mac).command", "python/Abrir Claude Switcher (Windows).bat", LICENSE -DestinationPath out/Claude-Switcher-Python-$v.zip
           Get-FileHash out/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content out/SHA256SUMS.txt
+          Get-Content out/SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: out/*
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Claude Switcher ${{ env.VERSION }}
           generate_release_notes: true
+          body: |
+            ## Download
+
+            - **Windows (recommended):** `Claude-Switcher-Setup-${{ env.VERSION }}.zip`. Unzip and run the installer. No admin rights needed.
+            - **Windows, no install:** `Claude-Switcher-Portable-${{ env.VERSION }}.zip`
+            - **macOS / Linux / Windows with Python 3.8+:** `Claude-Switcher-Python-${{ env.VERSION }}.zip`
+
+            The Windows builds are not code-signed yet. If SmartScreen shows *"Windows protected your PC"*, click **More info → Run anyway**.
+            Verify downloads with `SHA256SUMS.txt`. Built from this commit by GitHub Actions.
+
+            Not affiliated with or endorsed by Anthropic.
+          files: out/*
